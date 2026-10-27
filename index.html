@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müfredat Karşılaştırması: Geometri ve Ölçme</title>
+    <!-- Chart.js Kütüphanesi -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            background: #e9ecef;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+        .checkbox-container:hover {
+            background: #dee2e6;
+        }
+        input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            margin-bottom: 40px;
+        }
+        @media (max-width: 600px) {
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Geometri ve Ölçme Karşılaştırması</h1>
+    <p style="text-align: center; color: #666;">Karşılaştırmak istediğiniz müfredat yıllarını seçiniz.</p>
+
+    <!-- Filtreleme Kontrolleri -->
+    <div class="controls">
+        <label class="checkbox-container">
+            <input type="checkbox" id="check2013" onchange="grafikleriGuncelle()"> 2013 Müfredatı
+        </label>
+        <label class="checkbox-container">
+            <input type="checkbox" id="check2018" onchange="grafikleriGuncelle()"> 2018 Müfredatı
+        </label>
+        <label class="checkbox-container">
+            <input type="checkbox" id="check2026" onchange="grafikleriGuncelle()"> 2026 Müfredatı
+        </label>
+    </div>
+
+    <!-- Grafik 1: Sınıf Düzeylerine Göre Kazanım Sayıları (Bar Chart) -->
+    <h2>Sınıflara Göre Kazanım Dağılımı</h2>
+    <div class="chart-wrapper">
+        <canvas id="barChart"></canvas>
+    </div>
+
+    <hr style="border: 1px solid #eee; margin: 40px 0;">
+
+    <!-- Grafik 2: Öğrenme Alanı Alt Temaları Dağılımı (Radar Chart / Çoklu Ağ) -->
+    <h2>Geometri Alt Konu Ağırlıkları</h2>
+    <div class="chart-wrapper">
+        <canvas id="radarChart"></canvas>
+    </div>
+</div>
+
+<script>
+    // 1. Veri Setleri (Bu sayıları müfredat dokümanlarından elde ettiğiniz gerçek verilerle değiştirin)
+    const etiketlerSiniflar = ['5. Sınıf', '6. Sınıf', '7. Sınıf', '8. Sınıf'];
+    
+    // Bar Chart Verileri (Örnek: Kazanım sayıları)
+    const barVeri2013 = [12, 14, 15, 10];
+    const barVeri2018 = [8, 10, 11, 9];
+    const barVeri2026 = [9, 11, 12, 11]; // Tematik yapıdaki geometri nicelikleri
+
+    // Radar Chart Verileri (Örnek: Alt konuların genel yüzdesi veya vurgusu üzerinden 10 üzerinden puanlama)
+    const etiketlerKonular = ['Temel Geometrik Kavramlar', 'Çokgenler & Üçgenler', 'Çember ve Daire', 'Dönüşüm Geometrisi', 'Geometrik Cisimler'];
+    const radarVeri2013 = [8, 9, 7, 5, 8];
+    const radarVeri2018 = [6, 8, 8, 7, 7];
+    const radarVeri2026 = [5, 9, 8, 9, 9];
+
+    // Renk Tanımlamaları
+    const renkler = {
+        2013: { bg: 'rgba(255, 99, 132, 0.5)', border: 'rgba(255, 99, 132, 1)' },
+        2018: { bg: 'rgba(54, 162, 235, 0.5)', border: 'rgba(54, 162, 235, 1)' },
+        2026: { bg: 'rgba(75, 192, 192, 0.5)', border: 'rgba(75, 192, 192, 1)' }
+    };
+
+    // 2. Grafik Objelerini Başlatma (Başlangıçta Boş)
+    let ctxBar = document.getElementById('barChart').getContext('2d');
+    let ctxRadar = document.getElementById('radarChart').getContext('2d');
+
+    let barChart = new Chart(ctxBar, {
+        type: 'bar',
+        data: { labels: etiketlerSiniflar, datasets: [] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, title: { display: true, text: 'Kazanım / Çıktı Sayısı' } } },
+            plugins: { legend: { position: 'top' } }
+        }
+    });
+
+    let radarChart = new Chart(ctxRadar, {
+        type: 'radar',
+        data: { labels: etiketlerKonular, datasets: [] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { r: { beginAtZero: true, max: 10 } },
+            plugins: { legend: { position: 'top' } }
+        }
+    });
+
+    // 3. Etkileşim: Checkbox durumuna göre grafikleri güncelleme
+    function grafikleriGuncelle() {
+        let secili2013 = document.getElementById('check2013').checked;
+        let secili2018 = document.getElementById('check2018').checked;
+        let secili2026 = document.getElementById('check2026').checked;
+
+        // Bar Chart Veri Setlerini Hazırlama
+        let yeniBarDatasets = [];
+        if (secili2013) yeniBarDatasets.push({ label: '2013 Müfredatı', data: barVeri2013, backgroundColor: renkler[2013].bg, borderColor: renkler[2013].border, borderWidth: 1 });
+        if (secili2018) yeniBarDatasets.push({ label: '2018 Müfredatı', data: barVeri2018, backgroundColor: renkler[2018].bg, borderColor: renkler[2018].border, borderWidth: 1 });
+        if (secili2026) yeniBarDatasets.push({ label: '2026 Müfredatı', data: barVeri2026, backgroundColor: renkler[2026].bg, borderColor: renkler[2026].border, borderWidth: 1 });
+
+        // Radar Chart Veri Setlerini Hazırlama
+        let yeniRadarDatasets = [];
+        if (secili2013) yeniRadarDatasets.push({ label: '2013 Vurgusu', data: radarVeri2013, backgroundColor: renkler[2013].bg, borderColor: renkler[2013].border, pointBackgroundColor: renkler[2013].border });
+        if (secili2018) yeniRadarDatasets.push({ label: '2018 Vurgusu', data: radarVeri2018, backgroundColor: renkler[2018].bg, borderColor: renkler[2018].border, pointBackgroundColor: renkler[2018].border });
+        if (secili2026) yeniRadarDatasets.push({ label: '2026 Vurgusu', data: radarVeri2026, backgroundColor: renkler[2026].bg, borderColor: renkler[2026].border, pointBackgroundColor: renkler[2026].border });
+
+        // Grafikleri Güncelle
+        barChart.data.datasets = yeniBarDatasets;
+        barChart.update();
+
+        radarChart.data.datasets = yeniRadarDatasets;
+        radarChart.update();
+    }
+</script>
+
+</body>
+</html>
